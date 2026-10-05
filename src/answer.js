@@ -199,14 +199,15 @@ async function refresh() {
     }
   }
 
-  // 自动抽题（不 return，让 render() 继续执行）
+  // 自动抽题
   if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !isPicking) {
     isPicking = true;
     try {
-      await pickNext();
+      await pickNext();   // pickNext 内部会 render
     } finally {
       isPicking = false;
     }
+    return;   // ← 抽完题后直接返回，不再执行下面的 render
   }
 
   render();
