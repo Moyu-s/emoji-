@@ -129,7 +129,7 @@ function render() {
   if (phase === 'exhausted') {
     mainButtons.style.display = 'flex';
     contentArea.classList.add('visible');
-    contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目<br>点击「新的一局」重新开始</div>`;
+    contentArea.innerHTML = `<div class="question-text">本局已抽完所有不重复答案的题目<br><span style="font-size:1.4rem;">点击「新的一局」重新开始</span></div>`;
     progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     return;
   }
@@ -265,7 +265,6 @@ async function pickNext() {
 
   if (error) {
     console.error('写入失败:', error);
-    // 不 return，继续 render
   }
 
   phase = 'playing';
