@@ -20,6 +20,7 @@ let currentAnswer = '';
 let usedAnswers = [];
 let selectedBanks = [];
 let phase = 'welcome';
+let isPicking = false;
 
 let pollTimer = null;
 
@@ -199,9 +200,11 @@ async function refresh() {
     }
   }
 
-  // 检测到题目页选了题库、进入 playing 但还没题目 → 自动抽第一题
-  if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
+  // 防止重复抽题
+  if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !isPicking) {
+    isPicking = true;
     await pickNext();
+    isPicking = false;
     return;
   }
 
@@ -239,7 +242,8 @@ async function pickNext() {
       question: '',
       answer: ''
     });
-    await refresh();
+    phase = 'exhausted';
+    render();
     return;
   }
 
@@ -257,7 +261,10 @@ async function pickNext() {
     game_active: true,
     phase: 'playing'
   });
-  await refresh();
+
+  // 本地立即渲染，不调用 refresh()
+  phase = 'playing';
+  render();
 }
 
 // 答案页选题库：只写入状态，抽题交给 refresh()
