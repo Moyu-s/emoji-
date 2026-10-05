@@ -200,12 +200,14 @@ async function refresh() {
     }
   }
 
-  // 防止重复抽题
+  // 自动抽题（不 return，让 render() 继续执行）
   if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !isPicking) {
     isPicking = true;
-    await pickNext();
-    isPicking = false;
-    return;
+    try {
+      await pickNext();
+    } finally {
+      isPicking = false;
+    }
   }
 
   render();
