@@ -159,6 +159,11 @@ async function handleFile(file) {
       const workbook = XLSX.read(data, { type: 'array' });
       banksData = parseWorkbook(workbook);
       sessionStorage.setItem('banksData', JSON.stringify(banksData));
+
+      // 本地立即切换到 uploaded
+      phase = 'uploaded';
+      render();
+
       await updateGameState({ phase: 'uploaded' });
       startPolling();
       alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
@@ -238,12 +243,15 @@ async function pickNext() {
   });
 
   if (available.length === 0) {
+    // 本地立即切换到 exhausted
+    phase = 'exhausted';
+    render();
+
     await updateGameState({
       phase: 'exhausted',
       question: '',
       answer: ''
     });
-    render();
     return;
   }
 
@@ -254,6 +262,10 @@ async function pickNext() {
 
   if (currentAnswer && !usedAnswers.includes(currentAnswer)) usedAnswers.push(currentAnswer);
 
+  // 本地立即渲染
+  phase = 'playing';
+  render();
+
   await updateGameState({
     question: currentQuestion,
     answer: currentAnswer,
@@ -261,8 +273,6 @@ async function pickNext() {
     game_active: true,
     phase: 'playing'
   });
-
-  render();
 }
 
 bankConfirmBtn.addEventListener('click', async () => {
@@ -274,6 +284,10 @@ bankConfirmBtn.addEventListener('click', async () => {
   usedAnswers = [];
   currentQuestion = '';
   currentAnswer = '';
+
+  // 本地立即切换到 playing
+  phase = 'playing';
+  render();
 
   await updateGameState({
     selected_banks: checked,
@@ -298,6 +312,10 @@ newGameBtn.addEventListener('click', async () => {
 
   const hasFile = banksData && banksData.length > 0;
 
+  // 本地立即切换界面
+  phase = hasFile ? 'newgame' : 'welcome';
+  render();
+
   await updateGameState({
     used_answers: [],
     game_active: false,
@@ -311,8 +329,6 @@ newGameBtn.addEventListener('click', async () => {
     cb.checked = false;
     cb.closest('.bank-option').classList.remove('selected');
   });
-
-  startPolling();
 });
 
 // 清除文件：清空一切 → welcome（状态 0）
@@ -326,6 +342,11 @@ clearFileBtn.addEventListener('click', async () => {
   selectedBanks = [];
   usedAnswers = [];
 
+  // 本地立即切换界面
+  phase = 'welcome';
+  render();
+
+  // 再写入 Supabase
   await updateGameState({
     question: '',
     answer: '',
