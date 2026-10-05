@@ -21,7 +21,6 @@ let gameActive = false;
 let selectedBanks = [];
 let usedAnswers = [];
 let phase = 'welcome';
-let hasPickedFirst = false;   // 防止重复抽第一题
 
 let pollTimer = null;
 
@@ -102,7 +101,6 @@ function render() {
         </div>`;
       progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     } else {
-      // 没有题目时，显示等待提示
       contentArea.classList.add('visible');
       contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
     }
@@ -183,15 +181,10 @@ async function loadState() {
   if (saved) banksData = JSON.parse(saved);
 
   render();
-
-  if (phase === 'uploaded' || phase === 'newgame') {
-    startPolling();
-  } else {
-    startPolling();  // 其他阶段也启动轮询，确保能感知题目页操作
-  }
+  startPolling();
 }
 
-// 答案页轮询：只在 exhausted 时停止
+// 答案页轮询
 function startPolling() {
   if (pollTimer) clearTimeout(pollTimer);
 
@@ -205,21 +198,14 @@ function startPolling() {
       gameActive = data.game_active || false;
       phase = data.phase || 'welcome';
 
-      // 关键：题目页选了题库、进入 playing 但还没题目时，答案页自动抽第一题
-      if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !hasPickedFirst) {
-        hasPickedFirst = true;
+      // 题目页选了题库、进入 playing 但还没题目时，答案页自动抽第一题
+      if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
         await pickNext();
         return;
       }
 
-      // 如果已经有题目了，重置标记
-      if (currentQuestion) {
-        hasPickedFirst = false;
-      }
-
       render();
 
-      // 只在 exhausted 阶段停止轮询
       if (phase === 'exhausted') {
         return;
       }
@@ -276,7 +262,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   usedAnswers = [];
   currentQuestion = '';
   currentAnswer = '';
-  hasPickedFirst = false;
 
   await updateGameState({
     selected_banks: checked,
@@ -297,7 +282,6 @@ newGameBtn.addEventListener('click', async () => {
   currentQuestion = '';
   currentAnswer = '';
   selectedBanks = [];
-  hasPickedFirst = false;
 
   await updateGameState({
     used_answers: [],
@@ -325,7 +309,6 @@ clearFileBtn.addEventListener('click', async () => {
   gameActive = false;
   selectedBanks = [];
   usedAnswers = [];
-  hasPickedFirst = false;
 
   await updateGameState({
     question: '',
