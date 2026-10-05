@@ -84,7 +84,7 @@ function render() {
   if (phase === 'uploaded' || phase === 'newgame') {
     if (statusMsg) {
       statusMsg.style.display = 'block';
-      statusMsg.textContent = '✅ 文件已就绪，等待玩家确认「开始游戏」…';
+      statusMsg.textContent = '✅ 文件已就绪，等待题目页点击「开始游戏」…';
     }
     return;
   }
@@ -169,7 +169,7 @@ async function handleFile(file) {
       await updateGameState({ phase: 'uploaded' });
       await refresh();
       schedulePoll();
-      alert(`✅ 文件已保存！共 4 个题库，等待玩家确认「开始游戏」。`);
+      alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
     } catch(err) {
       alert('❌ 解析失败：' + err.message);
     }
@@ -177,6 +177,7 @@ async function handleFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
+// 唯一负责自动抽题的地方
 async function refresh() {
   const data = await fetchState();
   if (!data) return;
@@ -207,7 +208,6 @@ async function refresh() {
   render();
 }
 
-// 答案页在 uploaded / newgame / selecting 阶段轮询
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
@@ -218,12 +218,6 @@ function schedulePoll() {
 
   pollTimer = setTimeout(async () => {
     await refresh();
-
-    if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
-      await pickNext();
-      return;
-    }
-
     schedulePoll();
   }, interval);
 }
@@ -266,6 +260,7 @@ async function pickNext() {
   await refresh();
 }
 
+// 答案页选题库：只写入状态，抽题交给 refresh()
 bankConfirmBtn.addEventListener('click', async () => {
   const checked = [];
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
@@ -285,7 +280,6 @@ bankConfirmBtn.addEventListener('click', async () => {
     phase: 'playing'
   });
   await refresh();
-  await pickNext();
 });
 
 nextBtn.addEventListener('click', pickNext);
