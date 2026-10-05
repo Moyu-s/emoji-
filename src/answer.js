@@ -27,6 +27,20 @@ let pollTimer = null;
 const SUPABASE_URL = 'https://zjyycxlzzcqlqrkzafcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_xROd_7V0WnncKUlnxeoCMA_qGqNROA6';
 
+// 读取状态（禁用缓存）
+async function fetchState() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    },
+    cache: 'no-store'
+  });
+  if (!res.ok) return null;
+  const arr = await res.json();
+  return arr[0] || null;
+}
+
 async function updateGameState(fields) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
     method: 'PATCH',
@@ -65,13 +79,11 @@ function render() {
     delete bankSelect.dataset.initialized;
   }
 
-  // 状态 0：请上传文件
   if (phase === 'welcome') {
     dropZone.style.display = 'block';
     return;
   }
 
-  // 状态 1：等待玩家确认游戏开始
   if (phase === 'uploaded' || phase === 'newgame') {
     if (statusMsg) {
       statusMsg.style.display = 'block';
@@ -80,7 +92,6 @@ function render() {
     return;
   }
 
-  // 状态 2：挑选题库
   if (phase === 'selecting') {
     bankSelect.style.display = 'block';
     if (!bankSelect.dataset.initialized) {
@@ -94,7 +105,6 @@ function render() {
     return;
   }
 
-  // 状态 3：题目 + 答案 + 下一题
   if (phase === 'playing') {
     if (currentQuestion) {
       mainButtons.style.display = 'flex';
@@ -118,7 +128,6 @@ function render() {
     return;
   }
 
-  // 抽完所有题
   if (phase === 'exhausted') {
     mainButtons.style.display = 'flex';
     contentArea.classList.add('visible');
@@ -160,7 +169,6 @@ async function handleFile(file) {
       banksData = parseWorkbook(workbook);
       sessionStorage.setItem('banksData', JSON.stringify(banksData));
 
-      // 本地立即切换到 uploaded
       phase = 'uploaded';
       render();
 
@@ -175,8 +183,7 @@ async function handleFile(file) {
 }
 
 async function loadState() {
-  const { data, error } = await supabase.from('game_state').select('*').eq('id', 1).single();
-  if (error) { console.error(error); return; }
+  const data = await fetchState();
   if (!data) return;
 
   currentQuestion = data.question || '';
@@ -191,7 +198,6 @@ async function loadState() {
     banksData = JSON.parse(saved);
   } else {
     banksData = [];
-    // 本地没有文件，但状态还停留在 uploaded/newgame → 重置
     if (phase === 'uploaded' || phase === 'newgame') {
       phase = 'welcome';
       await updateGameState({ phase: 'welcome' });
@@ -206,8 +212,8 @@ function startPolling() {
   if (pollTimer) clearTimeout(pollTimer);
 
   pollTimer = setTimeout(async () => {
-    const { data, error } = await supabase.from('game_state').select('*').eq('id', 1).single();
-    if (!error && data) {
+    const data = await fetchState();
+    if (data) {
       currentQuestion = data.question || '';
       currentAnswer = data.answer || '';
       usedAnswers = data.used_answers || [];
@@ -243,7 +249,6 @@ async function pickNext() {
   });
 
   if (available.length === 0) {
-    // 本地立即切换到 exhausted
     phase = 'exhausted';
     render();
 
@@ -262,7 +267,6 @@ async function pickNext() {
 
   if (currentAnswer && !usedAnswers.includes(currentAnswer)) usedAnswers.push(currentAnswer);
 
-  // 本地立即渲染
   phase = 'playing';
   render();
 
@@ -285,7 +289,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   currentQuestion = '';
   currentAnswer = '';
 
-  // 本地立即切换到 playing
   phase = 'playing';
   render();
 
@@ -303,7 +306,6 @@ bankConfirmBtn.addEventListener('click', async () => {
 
 nextBtn.addEventListener('click', pickNext);
 
-// 新的一局：有文件 → newgame（状态 1）；没文件 → welcome（状态 0）
 newGameBtn.addEventListener('click', async () => {
   usedAnswers = [];
   currentQuestion = '';
@@ -312,7 +314,6 @@ newGameBtn.addEventListener('click', async () => {
 
   const hasFile = banksData && banksData.length > 0;
 
-  // 本地立即切换界面
   phase = hasFile ? 'newgame' : 'welcome';
   render();
 
@@ -331,7 +332,6 @@ newGameBtn.addEventListener('click', async () => {
   });
 });
 
-// 清除文件：清空一切 → welcome（状态 0）
 clearFileBtn.addEventListener('click', async () => {
   if (!confirm('确定要清除已保存的 Excel 数据吗？')) return;
   sessionStorage.removeItem('banksData');
@@ -342,11 +342,9 @@ clearFileBtn.addEventListener('click', async () => {
   selectedBanks = [];
   usedAnswers = [];
 
-  // 本地立即切换界面
   phase = 'welcome';
   render();
 
-  // 再写入 Supabase
   await updateGameState({
     question: '',
     answer: '',
