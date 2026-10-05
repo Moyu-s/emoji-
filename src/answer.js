@@ -24,8 +24,8 @@ let phase = 'welcome';
 
 let pollTimer = null;
 
-const SUPABASE_URL = 'https://wgxwsdhfxnilklgptflo.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ozcAf-8fBCpq7ElKKQolSw_R8G_2yDr';
+const SUPABASE_URL = 'https://zjyycxlzzcqlqrkzafcj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xROd_7V0WnncKUlnxeoCMA_qGqNROA6';
 
 async function updateGameState(fields) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
