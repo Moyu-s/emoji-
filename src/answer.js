@@ -178,7 +178,6 @@ async function handleFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-// 唯一负责自动抽题的地方
 async function refresh() {
   const data = await fetchState();
   if (!data) return;
@@ -256,7 +255,7 @@ async function pickNext() {
 
   if (currentAnswer && !usedAnswers.includes(currentAnswer)) usedAnswers.push(currentAnswer);
 
-  await updateGameState({
+  const { error } = await updateGameState({
     question: currentQuestion,
     answer: currentAnswer,
     used_answers: usedAnswers,
@@ -264,7 +263,12 @@ async function pickNext() {
     phase: 'playing'
   });
 
-  // 本地立即渲染，不调用 refresh()
+  if (error) {
+    console.error('写入失败:', error);
+    return;
+  }
+
+  // 写入成功后，本地变量已经是正确的，直接渲染
   phase = 'playing';
   render();
 }
