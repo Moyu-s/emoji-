@@ -57,6 +57,7 @@ function escapeHtml(text) {
 }
 
 function render() {
+  console.log('render called, phase:', phase, 'currentQuestion:', currentQuestion);
   contentArea.classList.remove('visible');
   bankSelect.style.display = 'none';
   if (startBtn) startBtn.style.display = 'none';
@@ -96,10 +97,12 @@ function render() {
 
   if (phase === 'playing') {
     if (currentQuestion) {
+      console.log('question render: showing question');
       contentArea.classList.add('visible');
       contentArea.innerHTML = `<div class="question-text">${escapeHtml(currentQuestion)}</div>`;
       progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     } else {
+      console.log('question render: showing waiting');
       contentArea.classList.add('visible');
       contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
       progressHint.textContent = '';
@@ -120,6 +123,7 @@ async function refresh() {
   if (!data) return;
 
   currentQuestion = data.question || '';
+  console.log('refresh set currentQuestion:', currentQuestion);
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
@@ -128,12 +132,9 @@ async function refresh() {
   render();
 }
 
-// 题目页在所有非 welcome 阶段都轮询，确保能感知答案页的操作
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
-  // 高频阶段：uploaded / newgame / selecting / playing
-  // 低频阶段：welcome / exhausted
   const highFreq = (phase === 'uploaded' || phase === 'newgame' || phase === 'selecting' || phase === 'playing');
   const interval = highFreq ? 300 : 2000;
 
