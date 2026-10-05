@@ -84,7 +84,7 @@ function render() {
   if (phase === 'uploaded' || phase === 'newgame') {
     if (statusMsg) {
       statusMsg.style.display = 'block';
-      statusMsg.textContent = '✅ 文件已就绪，等待题目页点击「开始游戏」…';
+      statusMsg.textContent = '✅ 文件已就绪，等待玩家确认「开始游戏」…';
     }
     return;
   }
@@ -169,7 +169,7 @@ async function handleFile(file) {
       await updateGameState({ phase: 'uploaded' });
       await refresh();
       schedulePoll();
-      alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
+      alert(`✅ 文件已保存！共 4 个题库，等待玩家确认「开始游戏」。`);
     } catch(err) {
       alert('❌ 解析失败：' + err.message);
     }
