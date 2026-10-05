@@ -48,8 +48,7 @@ async function updateGameState(fields) {
     console.error('写入失败:', res.status, text);
     return { error: { message: `HTTP ${res.status}: ${text}` } };
   }
-  const data = await res.json();
-  return { data, error: null };
+  return { data: await res.json(), error: null };
 }
 
 function escapeHtml(text) {
@@ -120,20 +119,25 @@ async function refresh() {
   const data = await fetchState();
   if (!data) return;
 
+  const newPhase = data.phase || 'welcome';
+
   currentQuestion = data.question || '';
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
-  phase = data.phase || 'welcome';
+  phase = newPhase;
 
   render();
 }
 
+// 题目页只在这些阶段轮询：uploaded（等答案页上传）、selecting（感知对方确定）、playing（感知抽题）
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
-  const highFreq = (phase === 'selecting' || phase === 'playing');
-  const interval = highFreq ? 300 : 1000;
+  const shouldPoll = (phase === 'uploaded' || phase === 'selecting' || phase === 'playing');
+  if (!shouldPoll) return;
+
+  const interval = (phase === 'playing') ? 300 : 800;
 
   pollTimer = setTimeout(async () => {
     await refresh();
@@ -164,6 +168,7 @@ bankConfirmBtn.addEventListener('click', async () => {
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
   if (checked.length === 0) { alert('请至少选择一个题库'); return; }
 
+  // 写入成功后立刻刷新，不再轮询
   await updateGameState({
     selected_banks: checked,
     used_answers: [],

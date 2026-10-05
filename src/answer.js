@@ -55,8 +55,7 @@ async function updateGameState(fields) {
     console.error('写入失败:', res.status, text);
     return { error: { message: `HTTP ${res.status}: ${text}` } };
   }
-  const data = await res.json();
-  return { data, error: null };
+  return { data: await res.json(), error: null };
 }
 
 function escapeHtml(text) {
@@ -169,6 +168,7 @@ async function handleFile(file) {
 
       await updateGameState({ phase: 'uploaded' });
       await refresh();
+      schedulePoll();
       alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
     } catch(err) {
       alert('❌ 解析失败：' + err.message);
@@ -198,22 +198,20 @@ async function refresh() {
     }
   }
 
-  // 自动抽第一题
-  if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
-    await pickNext();
-    return;
-  }
-
   render();
 }
 
+// 答案页只在 uploaded / newgame 阶段轮询（等题目页点开始）
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
+
+  const shouldPoll = (phase === 'uploaded' || phase === 'newgame');
+  if (!shouldPoll) return;
 
   pollTimer = setTimeout(async () => {
     await refresh();
     schedulePoll();
-  }, 300);
+  }, 500);
 }
 
 async function pickNext() {
@@ -273,6 +271,7 @@ bankConfirmBtn.addEventListener('click', async () => {
     phase: 'playing'
   });
   await refresh();
+  await pickNext();
 });
 
 nextBtn.addEventListener('click', pickNext);
@@ -294,6 +293,7 @@ newGameBtn.addEventListener('click', async () => {
     phase: hasFile ? 'newgame' : 'welcome'
   });
   await refresh();
+  schedulePoll();
 });
 
 clearFileBtn.addEventListener('click', async () => {
