@@ -156,6 +156,15 @@ bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
 
 if (startBtnInner) {
   startBtnInner.addEventListener('click', async () => {
+    // 本地立即切换界面，不等轮询
+    phase = 'selecting';
+    selectedBanks = [];
+    currentQuestion = '';
+    currentAnswer = '';
+    usedAnswers = [];
+    render();
+
+    // 再写入 Supabase
     await updateGameState({
       phase: 'selecting',
       selected_banks: [],
@@ -171,6 +180,14 @@ bankConfirmBtn.addEventListener('click', async () => {
   const checked = [];
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
   if (checked.length === 0) { alert('请至少选择一个题库'); return; }
+
+  // 本地立即切换，显示等待抽题
+  phase = 'playing';
+  selectedBanks = checked;
+  usedAnswers = [];
+  currentQuestion = '';
+  currentAnswer = '';
+  render();
 
   await updateGameState({
     selected_banks: checked,

@@ -182,7 +182,16 @@ async function loadState() {
   phase = data.phase || 'welcome';
 
   const saved = sessionStorage.getItem('banksData');
-  if (saved) banksData = JSON.parse(saved);
+  if (saved) {
+    banksData = JSON.parse(saved);
+  } else {
+    banksData = [];
+    // 本地没有文件，但状态还停留在 uploaded/newgame → 重置
+    if (phase === 'uploaded' || phase === 'newgame') {
+      phase = 'welcome';
+      await updateGameState({ phase: 'welcome' });
+    }
+  }
 
   render();
   startPolling();
