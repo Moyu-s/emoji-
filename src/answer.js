@@ -199,15 +199,14 @@ async function refresh() {
     }
   }
 
-  // 自动抽题
+  // 自动抽题（不 return，让后面的 render() 兜底）
   if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !isPicking) {
     isPicking = true;
     try {
-      await pickNext();   // pickNext 内部会 render
+      await pickNext();
     } finally {
       isPicking = false;
     }
-    return;   // ← 抽完题后直接返回，不再执行下面的 render
   }
 
   render();
@@ -266,7 +265,7 @@ async function pickNext() {
 
   if (error) {
     console.error('写入失败:', error);
-    return;
+    // 不 return，继续 render
   }
 
   phase = 'playing';
