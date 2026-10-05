@@ -106,21 +106,15 @@ function render() {
 
   if (phase === 'playing') {
     if (currentQuestion) {
+      console.log('render: showing question');
       mainButtons.style.display = 'flex';
       contentArea.classList.add('visible');
       contentArea.innerHTML = `
-        <div class="qa-block">
-          <div class="qa-item q">
-            <div class="qa-label">题目</div>
-            <div class="question-text">${escapeHtml(currentQuestion)}</div>
-          </div>
-          <div class="qa-item a">
-            <div class="qa-label">答案</div>
-            <div class="answer-text">${escapeHtml(currentAnswer) || '（无对应答案）'}</div>
-          </div>
-        </div>`;
+        ...
+      `;
       progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     } else {
+      console.log('render: showing waiting');
       contentArea.classList.add('visible');
       contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
     }
