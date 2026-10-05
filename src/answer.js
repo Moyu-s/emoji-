@@ -61,24 +61,26 @@ function render() {
   progressHint.textContent = '';
   if (statusMsg) statusMsg.style.display = 'none';
 
-  // 离开 selecting 阶段时，重置初始化标记
   if (phase !== 'selecting') {
     delete bankSelect.dataset.initialized;
   }
 
+  // 状态 0：请上传文件
   if (phase === 'welcome') {
     dropZone.style.display = 'block';
     return;
   }
 
-  if (phase === 'uploaded') {
+  // 状态 1：等待玩家确认游戏开始
+  if (phase === 'uploaded' || phase === 'newgame') {
     if (statusMsg) {
       statusMsg.style.display = 'block';
-      statusMsg.textContent = '✅ 文件上传成功，等待题目页点击「开始游戏」…';
+      statusMsg.textContent = '✅ 文件已就绪，等待题目页点击「开始游戏」…';
     }
     return;
   }
 
+  // 状态 2：挑选题库
   if (phase === 'selecting') {
     bankSelect.style.display = 'block';
     if (!bankSelect.dataset.initialized) {
@@ -92,6 +94,7 @@ function render() {
     return;
   }
 
+  // 状态 3：题目 + 答案 + 下一题
   if (phase === 'playing') {
     if (currentQuestion) {
       mainButtons.style.display = 'flex';
@@ -115,19 +118,12 @@ function render() {
     return;
   }
 
+  // 抽完所有题
   if (phase === 'exhausted') {
     mainButtons.style.display = 'flex';
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目<br>点击「新的一局」重新开始</div>`;
     progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
-    return;
-  }
-
-  if (phase === 'newgame') {
-    if (statusMsg) {
-      statusMsg.style.display = 'block';
-      statusMsg.textContent = '⏳ 等待题目页点击「开始游戏」…';
-    }
     return;
   }
 }
@@ -192,7 +188,6 @@ async function loadState() {
   startPolling();
 }
 
-// 答案页轮询
 function startPolling() {
   if (pollTimer) clearTimeout(pollTimer);
 
@@ -285,11 +280,14 @@ bankConfirmBtn.addEventListener('click', async () => {
 
 nextBtn.addEventListener('click', pickNext);
 
+// 新的一局：有文件 → newgame（状态 1）；没文件 → welcome（状态 0）
 newGameBtn.addEventListener('click', async () => {
   usedAnswers = [];
   currentQuestion = '';
   currentAnswer = '';
   selectedBanks = [];
+
+  const hasFile = banksData && banksData.length > 0;
 
   await updateGameState({
     used_answers: [],
@@ -297,7 +295,7 @@ newGameBtn.addEventListener('click', async () => {
     question: '',
     answer: '',
     selected_banks: [],
-    phase: 'newgame'
+    phase: hasFile ? 'newgame' : 'welcome'
   });
 
   bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -308,6 +306,7 @@ newGameBtn.addEventListener('click', async () => {
   startPolling();
 });
 
+// 清除文件：清空一切 → welcome（状态 0）
 clearFileBtn.addEventListener('click', async () => {
   if (!confirm('确定要清除已保存的 Excel 数据吗？')) return;
   sessionStorage.removeItem('banksData');

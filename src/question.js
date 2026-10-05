@@ -54,6 +54,7 @@ function render() {
     delete bankSelect.dataset.initialized;
   }
 
+  // 状态 0：欢迎语
   if (phase === 'welcome') {
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="welcome-text">✨ 欢迎来到 emoji 乐园 ✨</div>`;
@@ -61,6 +62,7 @@ function render() {
     return;
   }
 
+  // 状态 1：欢迎语 + 开始游戏按钮
   if (phase === 'uploaded' || phase === 'newgame') {
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="welcome-text">✨ 欢迎来到 emoji 乐园 ✨</div>`;
@@ -69,6 +71,7 @@ function render() {
     return;
   }
 
+  // 状态 2：挑选题库
   if (phase === 'selecting') {
     bankSelect.style.display = 'block';
     if (!bankSelect.dataset.initialized) {
@@ -83,6 +86,7 @@ function render() {
     return;
   }
 
+  // 状态 3：题目
   if (phase === 'playing') {
     if (currentQuestion) {
       contentArea.classList.add('visible');
@@ -93,6 +97,14 @@ function render() {
       contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
       progressHint.textContent = '';
     }
+    return;
+  }
+
+  // 抽完所有题
+  if (phase === 'exhausted') {
+    contentArea.classList.add('visible');
+    contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目<br>点击「新的一局」重新开始</div>`;
+    progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     return;
   }
 }
@@ -112,7 +124,6 @@ async function loadState() {
   render();
 }
 
-// 单次轮询
 async function pollOnce() {
   const { data, error } = await supabase.from('game_state').select('*').eq('id', 1).single();
   if (error || !data) return;
@@ -127,7 +138,6 @@ async function pollOnce() {
   render();
 }
 
-// 题目页轮询：selecting / playing 高频，其他低频
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
@@ -172,7 +182,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   });
 });
 
-// 启动
 loadState().then(() => {
   schedulePoll();
 });
