@@ -21,6 +21,7 @@ let gameActive = false;
 let selectedBanks = [];
 let usedAnswers = [];
 let phase = 'welcome';
+let hasPickedFirst = false;   // 防止重复抽第一题
 
 let pollTimer = null;
 
@@ -100,7 +101,19 @@ function render() {
           </div>
         </div>`;
       progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
+    } else {
+      // 没有题目时，显示等待提示
+      contentArea.classList.add('visible');
+      contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
     }
+    return;
+  }
+
+  if (phase === 'exhausted') {
+    mainButtons.style.display = 'flex';
+    contentArea.classList.add('visible');
+    contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目<br>点击「新的一局」重新开始</div>`;
+    progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     return;
   }
 
@@ -145,7 +158,6 @@ async function handleFile(file) {
       banksData = parseWorkbook(workbook);
       sessionStorage.setItem('banksData', JSON.stringify(banksData));
       await updateGameState({ phase: 'uploaded' });
-      // 上传后启动高频轮询，等待题目页操作
       startPolling();
       alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
     } catch(err) {
@@ -172,13 +184,14 @@ async function loadState() {
 
   render();
 
-  // 如果当前处于 uploaded / newgame 阶段，启动高频轮询
   if (phase === 'uploaded' || phase === 'newgame') {
     startPolling();
+  } else {
+    startPolling();  // 其他阶段也启动轮询，确保能感知题目页操作
   }
 }
 
-// 答案页轮询：只在 uploaded / newgame 阶段运行
+// 答案页轮询：只在 exhausted 时停止
 function startPolling() {
   if (pollTimer) clearTimeout(pollTimer);
 
@@ -192,11 +205,23 @@ function startPolling() {
       gameActive = data.game_active || false;
       phase = data.phase || 'welcome';
 
+      // 关键：题目页选了题库、进入 playing 但还没题目时，答案页自动抽第一题
+      if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0 && !hasPickedFirst) {
+        hasPickedFirst = true;
+        await pickNext();
+        return;
+      }
+
+      // 如果已经有题目了，重置标记
+      if (currentQuestion) {
+        hasPickedFirst = false;
+      }
+
       render();
 
-      // 一旦进入 selecting 或 playing，停止轮询
-      if (phase === 'playing' || phase === 'selecting') {
-        return; // 不再调度下一次
+      // 只在 exhausted 阶段停止轮询
+      if (phase === 'exhausted') {
+        return;
       }
     }
     startPolling();
@@ -215,8 +240,12 @@ async function pickNext() {
   });
 
   if (available.length === 0) {
-    contentArea.classList.add('visible');
-    contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目</div>`;
+    await updateGameState({
+      phase: 'exhausted',
+      question: '',
+      answer: ''
+    });
+    render();
     return;
   }
 
@@ -247,6 +276,7 @@ bankConfirmBtn.addEventListener('click', async () => {
   usedAnswers = [];
   currentQuestion = '';
   currentAnswer = '';
+  hasPickedFirst = false;
 
   await updateGameState({
     selected_banks: checked,
@@ -267,6 +297,7 @@ newGameBtn.addEventListener('click', async () => {
   currentQuestion = '';
   currentAnswer = '';
   selectedBanks = [];
+  hasPickedFirst = false;
 
   await updateGameState({
     used_answers: [],
@@ -282,7 +313,6 @@ newGameBtn.addEventListener('click', async () => {
     cb.closest('.bank-option').classList.remove('selected');
   });
 
-  // 新的一局后启动高频轮询，等待题目页操作
   startPolling();
 });
 
@@ -295,6 +325,7 @@ clearFileBtn.addEventListener('click', async () => {
   gameActive = false;
   selectedBanks = [];
   usedAnswers = [];
+  hasPickedFirst = false;
 
   await updateGameState({
     question: '',
@@ -316,5 +347,4 @@ bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
   cb.addEventListener('change', () => cb.closest('.bank-option').classList.toggle('selected', cb.checked));
 });
 
-// 启动
 loadState();
