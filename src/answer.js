@@ -65,6 +65,7 @@ function escapeHtml(text) {
 }
 
 function render() {
+  console.log('render called, phase:', phase, 'currentQuestion:', currentQuestion);
   dropZone.style.display = 'none';
   bankSelect.style.display = 'none';
   mainButtons.style.display = 'none';
@@ -183,6 +184,7 @@ async function refresh() {
   if (!data) return;
 
   currentQuestion = data.question || '';
+  console.log('refresh set currentQuestion:', currentQuestion);
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
