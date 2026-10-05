@@ -330,6 +330,8 @@ newGameBtn.addEventListener('click', async () => {
     cb.checked = false;
     cb.closest('.bank-option').classList.remove('selected');
   });
+
+  startPolling();
 });
 
 clearFileBtn.addEventListener('click', async () => {
@@ -353,6 +355,8 @@ clearFileBtn.addEventListener('click', async () => {
     game_active: false,
     phase: 'welcome'
   });
+
+  startPolling();
 });
 
 dropZone.addEventListener('click', () => fileInput.click());
