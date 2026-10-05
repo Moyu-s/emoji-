@@ -27,7 +27,6 @@ let pollTimer = null;
 const SUPABASE_URL = 'https://zjyycxlzzcqlqrkzafcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_xROd_7V0WnncKUlnxeoCMA_qGqNROA6';
 
-// 读取状态（禁用缓存）
 async function fetchState() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
     headers: {
@@ -214,12 +213,26 @@ function startPolling() {
   pollTimer = setTimeout(async () => {
     const data = await fetchState();
     if (data) {
+      const newPhase = data.phase || 'welcome';
+
+      // 不回退：本地是 playing，读到 exhausted 但本地有题目，忽略
+      if (phase === 'playing' && newPhase === 'exhausted' && currentQuestion) {
+        startPolling();
+        return;
+      }
+
+      // 不回退：本地是 newgame，读到 exhausted/playing 时忽略
+      if (phase === 'newgame' && (newPhase === 'exhausted' || newPhase === 'playing')) {
+        startPolling();
+        return;
+      }
+
       currentQuestion = data.question || '';
       currentAnswer = data.answer || '';
       usedAnswers = data.used_answers || [];
       selectedBanks = data.selected_banks || [];
       gameActive = data.game_active || false;
-      phase = data.phase || 'welcome';
+      phase = newPhase;
 
       // 题目页选了题库、进入 playing 但还没题目时，答案页自动抽第一题
       if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {

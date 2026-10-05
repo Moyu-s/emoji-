@@ -20,6 +20,19 @@ let pollTimer = null;
 const SUPABASE_URL = 'https://zjyycxlzzcqlqrkzafcj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_xROd_7V0WnncKUlnxeoCMA_qGqNROA6';
 
+async function fetchState() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    },
+    cache: 'no-store'
+  });
+  if (!res.ok) return null;
+  const arr = await res.json();
+  return arr[0] || null;
+}
+
 async function updateGameState(fields) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/game_state?id=eq.1`, {
     method: 'PATCH',
@@ -54,7 +67,6 @@ function render() {
     delete bankSelect.dataset.initialized;
   }
 
-  // 状态 0：欢迎语
   if (phase === 'welcome') {
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="welcome-text">✨ 欢迎来到 emoji 乐园 ✨</div>`;
@@ -62,7 +74,6 @@ function render() {
     return;
   }
 
-  // 状态 1：欢迎语 + 开始游戏按钮
   if (phase === 'uploaded' || phase === 'newgame') {
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="welcome-text">✨ 欢迎来到 emoji 乐园 ✨</div>`;
@@ -71,7 +82,6 @@ function render() {
     return;
   }
 
-  // 状态 2：挑选题库
   if (phase === 'selecting') {
     bankSelect.style.display = 'block';
     if (!bankSelect.dataset.initialized) {
@@ -86,7 +96,6 @@ function render() {
     return;
   }
 
-  // 状态 3：题目
   if (phase === 'playing') {
     if (currentQuestion) {
       contentArea.classList.add('visible');
@@ -100,7 +109,6 @@ function render() {
     return;
   }
 
-  // 抽完所有题
   if (phase === 'exhausted') {
     contentArea.classList.add('visible');
     contentArea.innerHTML = `<div class="placeholder-text">本局已抽完所有不重复答案的题目<br>点击「新的一局」重新开始</div>`;
@@ -110,8 +118,7 @@ function render() {
 }
 
 async function loadState() {
-  const { data, error } = await supabase.from('game_state').select('*').eq('id', 1).single();
-  if (error) { console.error(error); return; }
+  const data = await fetchState();
   if (!data) return;
 
   currentQuestion = data.question || '';
@@ -125,15 +132,32 @@ async function loadState() {
 }
 
 async function pollOnce() {
-  const { data, error } = await supabase.from('game_state').select('*').eq('id', 1).single();
-  if (error || !data) return;
+  const data = await fetchState();
+  if (!data) return;
+
+  const newPhase = data.phase || 'welcome';
+
+  // 不回退：本地是 playing，读到 selecting/uploaded/newgame 时忽略
+  if (phase === 'playing' && (newPhase === 'selecting' || newPhase === 'uploaded' || newPhase === 'newgame')) {
+    return;
+  }
+
+  // 不回退：本地是 selecting，读到 uploaded/newgame 时忽略
+  if (phase === 'selecting' && (newPhase === 'uploaded' || newPhase === 'newgame')) {
+    return;
+  }
+
+  // 不回退：本地是 newgame，读到 exhausted 时忽略
+  if (phase === 'newgame' && newPhase === 'exhausted') {
+    return;
+  }
 
   currentQuestion = data.question || '';
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
   gameActive = data.game_active || false;
-  phase = data.phase || 'welcome';
+  phase = newPhase;
 
   render();
 }
@@ -170,7 +194,6 @@ if (startBtnInner) {
       return;
     }
 
-    // 写入成功后再本地切换
     phase = 'selecting';
     selectedBanks = [];
     currentQuestion = '';
@@ -185,14 +208,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
   if (checked.length === 0) { alert('请至少选择一个题库'); return; }
 
-  // 本地立即切换，显示等待抽题
-  phase = 'playing';
-  selectedBanks = checked;
-  usedAnswers = [];
-  currentQuestion = '';
-  currentAnswer = '';
-  render();
-
   await updateGameState({
     selected_banks: checked,
     used_answers: [],
@@ -201,6 +216,13 @@ bankConfirmBtn.addEventListener('click', async () => {
     answer: '',
     phase: 'playing'
   });
+
+  phase = 'playing';
+  selectedBanks = checked;
+  usedAnswers = [];
+  currentQuestion = '';
+  currentAnswer = '';
+  render();
 });
 
 loadState().then(() => {
