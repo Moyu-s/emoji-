@@ -61,6 +61,11 @@ function render() {
   progressHint.textContent = '';
   if (statusMsg) statusMsg.style.display = 'none';
 
+  // 离开 selecting 阶段时，重置初始化标记
+  if (phase !== 'selecting') {
+    delete bankSelect.dataset.initialized;
+  }
+
   if (phase === 'welcome') {
     dropZone.style.display = 'block';
     return;
@@ -76,11 +81,14 @@ function render() {
 
   if (phase === 'selecting') {
     bankSelect.style.display = 'block';
-    bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      const val = parseInt(cb.value);
-      cb.checked = selectedBanks.includes(val);
-      cb.closest('.bank-option').classList.toggle('selected', cb.checked);
-    });
+    if (!bankSelect.dataset.initialized) {
+      bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        const val = parseInt(cb.value);
+        cb.checked = selectedBanks.includes(val);
+        cb.closest('.bank-option').classList.toggle('selected', cb.checked);
+      });
+      bankSelect.dataset.initialized = '1';
+    }
     return;
   }
 
