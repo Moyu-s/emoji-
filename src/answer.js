@@ -65,7 +65,6 @@ function escapeHtml(text) {
 }
 
 function render() {
-  console.log('render called, phase:', phase, 'currentQuestion:', currentQuestion);
   dropZone.style.display = 'none';
   bankSelect.style.display = 'none';
   mainButtons.style.display = 'none';
@@ -106,15 +105,21 @@ function render() {
 
   if (phase === 'playing') {
     if (currentQuestion) {
-      console.log('render: showing question');
       mainButtons.style.display = 'flex';
       contentArea.classList.add('visible');
       contentArea.innerHTML = `
-        ...
-      `;
+        <div class="qa-block">
+          <div class="qa-item q">
+            <div class="qa-label">题目</div>
+            <div class="question-text">${escapeHtml(currentQuestion)}</div>
+          </div>
+          <div class="qa-item a">
+            <div class="qa-label">答案</div>
+            <div class="answer-text">${escapeHtml(currentAnswer) || '（无对应答案）'}</div>
+          </div>
+        </div>`;
       progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     } else {
-      console.log('render: showing waiting');
       contentArea.classList.add('visible');
       contentArea.innerHTML = `<div class="welcome-text">等待抽题…</div>`;
     }
@@ -178,7 +183,6 @@ async function refresh() {
   if (!data) return;
 
   currentQuestion = data.question || '';
-  console.log('refresh set currentQuestion:', currentQuestion);
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
@@ -264,12 +268,10 @@ async function pickNext() {
     return;
   }
 
-  // 写入成功后，本地变量已经是正确的，直接渲染
   phase = 'playing';
   render();
 }
 
-// 答案页选题库：只写入状态，抽题交给 refresh()
 bankConfirmBtn.addEventListener('click', async () => {
   const checked = [];
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
