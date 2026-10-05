@@ -129,7 +129,7 @@ function render() {
   if (phase === 'exhausted') {
     mainButtons.style.display = 'flex';
     contentArea.classList.add('visible');
-    contentArea.innerHTML = `<div class="question-text">本局已抽完所有不重复答案的题目<br><span style="font-size:1.4rem;">点击「新的一局」重新开始</span></div>`;
+    contentArea.innerHTML = `<div style="font-size:1.6rem; font-weight:700; line-height:1.5; color:#0b1e2e;">本局已抽完所有不重复答案的题目<br><span style="font-size:1.6rem;">点击「新的一局」重新开始</span></div>`;
     progressHint.textContent = `已抽取 ${usedAnswers.length} 题`;
     return;
   }
