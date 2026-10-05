@@ -17,9 +17,8 @@ const statusMsg = document.getElementById('statusMsg');
 let banksData = [];
 let currentQuestion = '';
 let currentAnswer = '';
-let gameActive = false;
-let selectedBanks = [];
 let usedAnswers = [];
+let selectedBanks = [];
 let phase = 'welcome';
 
 let pollTimer = null;
@@ -168,11 +167,8 @@ async function handleFile(file) {
       banksData = parseWorkbook(workbook);
       sessionStorage.setItem('banksData', JSON.stringify(banksData));
 
-      phase = 'uploaded';
-      render();
-
       await updateGameState({ phase: 'uploaded' });
-      startPolling();
+      await refresh();
       alert(`✅ 文件已保存！共 4 个题库，等待题目页点击「开始游戏」。`);
     } catch(err) {
       alert('❌ 解析失败：' + err.message);
@@ -181,7 +177,7 @@ async function handleFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-async function loadState() {
+async function refresh() {
   const data = await fetchState();
   if (!data) return;
 
@@ -189,7 +185,6 @@ async function loadState() {
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
-  gameActive = data.game_active || false;
   phase = data.phase || 'welcome';
 
   const saved = sessionStorage.getItem('banksData');
@@ -203,50 +198,21 @@ async function loadState() {
     }
   }
 
+  // 自动抽第一题
+  if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
+    await pickNext();
+    return;
+  }
+
   render();
-  startPolling();
 }
 
-function startPolling() {
+function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
   pollTimer = setTimeout(async () => {
-    const data = await fetchState();
-    if (data) {
-      const newPhase = data.phase || 'welcome';
-
-      // 不回退：本地是 playing，读到 exhausted 但本地有题目，忽略
-      if (phase === 'playing' && newPhase === 'exhausted' && currentQuestion) {
-        startPolling();
-        return;
-      }
-
-      // 不回退：本地是 newgame，读到 exhausted/playing 时忽略
-      if (phase === 'newgame' && (newPhase === 'exhausted' || newPhase === 'playing')) {
-        startPolling();
-        return;
-      }
-
-      currentQuestion = data.question || '';
-      currentAnswer = data.answer || '';
-      usedAnswers = data.used_answers || [];
-      selectedBanks = data.selected_banks || [];
-      gameActive = data.game_active || false;
-      phase = newPhase;
-
-      // 题目页选了题库、进入 playing 但还没题目时，答案页自动抽第一题
-      if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
-        await pickNext();
-        return;
-      }
-
-      render();
-
-      if (phase === 'exhausted') {
-        return;
-      }
-    }
-    startPolling();
+    await refresh();
+    schedulePoll();
   }, 300);
 }
 
@@ -262,14 +228,12 @@ async function pickNext() {
   });
 
   if (available.length === 0) {
-    phase = 'exhausted';
-    render();
-
     await updateGameState({
       phase: 'exhausted',
       question: '',
       answer: ''
     });
+    await refresh();
     return;
   }
 
@@ -280,9 +244,6 @@ async function pickNext() {
 
   if (currentAnswer && !usedAnswers.includes(currentAnswer)) usedAnswers.push(currentAnswer);
 
-  phase = 'playing';
-  render();
-
   await updateGameState({
     question: currentQuestion,
     answer: currentAnswer,
@@ -290,6 +251,7 @@ async function pickNext() {
     game_active: true,
     phase: 'playing'
   });
+  await refresh();
 }
 
 bankConfirmBtn.addEventListener('click', async () => {
@@ -302,9 +264,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   currentQuestion = '';
   currentAnswer = '';
 
-  phase = 'playing';
-  render();
-
   await updateGameState({
     selected_banks: checked,
     used_answers: [],
@@ -313,8 +272,7 @@ bankConfirmBtn.addEventListener('click', async () => {
     answer: '',
     phase: 'playing'
   });
-
-  await pickNext();
+  await refresh();
 });
 
 nextBtn.addEventListener('click', pickNext);
@@ -327,9 +285,6 @@ newGameBtn.addEventListener('click', async () => {
 
   const hasFile = banksData && banksData.length > 0;
 
-  phase = hasFile ? 'newgame' : 'welcome';
-  render();
-
   await updateGameState({
     used_answers: [],
     game_active: false,
@@ -338,13 +293,7 @@ newGameBtn.addEventListener('click', async () => {
     selected_banks: [],
     phase: hasFile ? 'newgame' : 'welcome'
   });
-
-  bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-    cb.checked = false;
-    cb.closest('.bank-option').classList.remove('selected');
-  });
-
-  startPolling();
+  await refresh();
 });
 
 clearFileBtn.addEventListener('click', async () => {
@@ -353,12 +302,8 @@ clearFileBtn.addEventListener('click', async () => {
   banksData = [];
   currentQuestion = '';
   currentAnswer = '';
-  gameActive = false;
   selectedBanks = [];
   usedAnswers = [];
-
-  phase = 'welcome';
-  render();
 
   await updateGameState({
     question: '',
@@ -368,8 +313,7 @@ clearFileBtn.addEventListener('click', async () => {
     game_active: false,
     phase: 'welcome'
   });
-
-  startPolling();
+  await refresh();
 });
 
 dropZone.addEventListener('click', () => fileInput.click());
@@ -382,4 +326,9 @@ bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
   cb.addEventListener('change', () => cb.closest('.bank-option').classList.toggle('selected', cb.checked));
 });
 
-loadState();
+async function init() {
+  await refresh();
+  schedulePoll();
+}
+
+init();

@@ -10,7 +10,6 @@ const startBtnInner = document.getElementById('startBtnInner');
 
 let currentQuestion = '';
 let currentAnswer = '';
-let gameActive = false;
 let usedAnswers = [];
 let selectedBanks = [];
 let phase = 'welcome';
@@ -117,7 +116,7 @@ function render() {
   }
 }
 
-async function loadState() {
+async function refresh() {
   const data = await fetchState();
   if (!data) return;
 
@@ -125,39 +124,7 @@ async function loadState() {
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
-  gameActive = data.game_active || false;
   phase = data.phase || 'welcome';
-
-  render();
-}
-
-async function pollOnce() {
-  const data = await fetchState();
-  if (!data) return;
-
-  const newPhase = data.phase || 'welcome';
-
-  // 不回退：本地是 playing，读到 selecting/uploaded/newgame 时忽略
-  if (phase === 'playing' && (newPhase === 'selecting' || newPhase === 'uploaded' || newPhase === 'newgame')) {
-    return;
-  }
-
-  // 不回退：本地是 selecting，读到 uploaded/newgame 时忽略
-  if (phase === 'selecting' && (newPhase === 'uploaded' || newPhase === 'newgame')) {
-    return;
-  }
-
-  // 不回退：本地是 newgame，读到 exhausted 时忽略
-  if (phase === 'newgame' && newPhase === 'exhausted') {
-    return;
-  }
-
-  currentQuestion = data.question || '';
-  currentAnswer = data.answer || '';
-  usedAnswers = data.used_answers || [];
-  selectedBanks = data.selected_banks || [];
-  gameActive = data.game_active || false;
-  phase = newPhase;
 
   render();
 }
@@ -166,10 +133,10 @@ function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
   const highFreq = (phase === 'selecting' || phase === 'playing');
-  const interval = highFreq ? 300 : 2000;
+  const interval = highFreq ? 300 : 1000;
 
   pollTimer = setTimeout(async () => {
-    await pollOnce();
+    await refresh();
     schedulePoll();
   }, interval);
 }
@@ -180,7 +147,7 @@ bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
 
 if (startBtnInner) {
   startBtnInner.addEventListener('click', async () => {
-    const { error } = await updateGameState({
+    await updateGameState({
       phase: 'selecting',
       selected_banks: [],
       used_answers: [],
@@ -188,18 +155,7 @@ if (startBtnInner) {
       question: '',
       answer: ''
     });
-
-    if (error) {
-      alert('写入失败：' + error.message);
-      return;
-    }
-
-    phase = 'selecting';
-    selectedBanks = [];
-    currentQuestion = '';
-    currentAnswer = '';
-    usedAnswers = [];
-    render();
+    await refresh();
   });
 }
 
@@ -216,15 +172,12 @@ bankConfirmBtn.addEventListener('click', async () => {
     answer: '',
     phase: 'playing'
   });
-
-  phase = 'playing';
-  selectedBanks = checked;
-  usedAnswers = [];
-  currentQuestion = '';
-  currentAnswer = '';
-  render();
+  await refresh();
 });
 
-loadState().then(() => {
+async function init() {
+  await refresh();
   schedulePoll();
-});
+}
+
+init();
