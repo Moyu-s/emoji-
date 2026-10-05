@@ -156,16 +156,7 @@ bankOptions.querySelectorAll('input[type="checkbox"]').forEach(cb => {
 
 if (startBtnInner) {
   startBtnInner.addEventListener('click', async () => {
-    // 本地立即切换界面，不等轮询
-    phase = 'selecting';
-    selectedBanks = [];
-    currentQuestion = '';
-    currentAnswer = '';
-    usedAnswers = [];
-    render();
-
-    // 再写入 Supabase
-    await updateGameState({
+    const { error } = await updateGameState({
       phase: 'selecting',
       selected_banks: [],
       used_answers: [],
@@ -173,6 +164,19 @@ if (startBtnInner) {
       question: '',
       answer: ''
     });
+
+    if (error) {
+      alert('写入失败：' + error.message);
+      return;
+    }
+
+    // 写入成功后再本地切换
+    phase = 'selecting';
+    selectedBanks = [];
+    currentQuestion = '';
+    currentAnswer = '';
+    usedAnswers = [];
+    render();
   });
 }
 
