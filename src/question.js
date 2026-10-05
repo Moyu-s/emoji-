@@ -119,25 +119,23 @@ async function refresh() {
   const data = await fetchState();
   if (!data) return;
 
-  const newPhase = data.phase || 'welcome';
-
   currentQuestion = data.question || '';
   currentAnswer = data.answer || '';
   usedAnswers = data.used_answers || [];
   selectedBanks = data.selected_banks || [];
-  phase = newPhase;
+  phase = data.phase || 'welcome';
 
   render();
 }
 
-// 题目页只在这些阶段轮询：uploaded（等答案页上传）、selecting（感知对方确定）、playing（感知抽题）
+// 题目页在所有非 welcome 阶段都轮询，确保能感知答案页的操作
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
-  const shouldPoll = (phase === 'uploaded' || phase === 'selecting' || phase === 'playing');
-  if (!shouldPoll) return;
-
-  const interval = (phase === 'playing') ? 300 : 800;
+  // 高频阶段：uploaded / newgame / selecting / playing
+  // 低频阶段：welcome / exhausted
+  const highFreq = (phase === 'uploaded' || phase === 'newgame' || phase === 'selecting' || phase === 'playing');
+  const interval = highFreq ? 300 : 2000;
 
   pollTimer = setTimeout(async () => {
     await refresh();
@@ -168,7 +166,6 @@ bankConfirmBtn.addEventListener('click', async () => {
   bankOptions.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => checked.push(parseInt(cb.value)));
   if (checked.length === 0) { alert('请至少选择一个题库'); return; }
 
-  // 写入成功后立刻刷新，不再轮询
   await updateGameState({
     selected_banks: checked,
     used_answers: [],
