@@ -198,20 +198,34 @@ async function refresh() {
     }
   }
 
+  // 检测到题目页选了题库、进入 playing 但还没题目 → 自动抽第一题
+  if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
+    await pickNext();
+    return;
+  }
+
   render();
 }
 
-// 答案页只在 uploaded / newgame 阶段轮询（等题目页点开始）
+// 答案页在 uploaded / newgame / selecting 阶段轮询
 function schedulePoll() {
   if (pollTimer) clearTimeout(pollTimer);
 
-  const shouldPoll = (phase === 'uploaded' || phase === 'newgame');
+  const shouldPoll = (phase === 'uploaded' || phase === 'newgame' || phase === 'selecting');
   if (!shouldPoll) return;
+
+  const interval = (phase === 'selecting') ? 300 : 500;
 
   pollTimer = setTimeout(async () => {
     await refresh();
+
+    if (phase === 'playing' && !currentQuestion && selectedBanks.length > 0 && banksData.length > 0) {
+      await pickNext();
+      return;
+    }
+
     schedulePoll();
-  }, 500);
+  }, interval);
 }
 
 async function pickNext() {
